@@ -84,7 +84,6 @@ func verifyPlayer(playerID int) (*people, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not verify player %d: %s", playerID, err)
 	}
-	// bug if player not found
 	return &resp.People[0], nil
 }
 
@@ -199,6 +198,7 @@ func getGridLines(min, max, count float64) []chart.GridLine {
 
 func main() {
 	var stat = flag.String("stat", "points", "the stat to measure (i.e. points, goals)")
+	var outputFile = flag.String("o", "leaders.png", "the file name i.e. 'top10_points.png'")
 	flag.Parse()
 
 	players := getPlayers(flag.Args())
@@ -240,7 +240,7 @@ func main() {
 		chart.Legend(&graph),
 	}
 
-	f, err := os.Create("./leaders.png")
+	f, err := os.Create(fmt.Sprintf("%s", *outputFile))
 	if err != nil {
 		log.Fatalf("error creating file %s", err)
 	}
