@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	chart "github.com/wcharczuk/go-chart"
@@ -54,14 +55,26 @@ type peopleResponse struct {
 }
 
 type people struct {
-	LastName  string `json:"lastName"`
 	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
 }
 
 type chartData struct {
 	series chart.TimeSeries
 	max    float64
 	min    float64
+}
+
+// Player struct
+type Player struct {
+	ID        int
+	firstName string
+	lastName  string
+}
+
+type outputFormat struct {
+	name     string
+	renderer chart.RendererProvider
 }
 
 func getJSON(url string, target interface{}) error {
@@ -77,23 +90,26 @@ func getJSON(url string, target interface{}) error {
 	return json.NewDecoder(r.Body).Decode(target)
 }
 
-func verifyPlayer(playerID int) (*people, error) {
-	playerURL := fmt.Sprintf("people/%d", playerID)
+func (p *Player) populateName() error {
+	playerURL := fmt.Sprintf("people/%d", p.ID)
 	resp := new(peopleResponse)
 	err := getJSON(hostURL+playerURL, resp)
 	if err != nil {
-		return nil, fmt.Errorf("could not verify player %d: %s", playerID, err)
+		return fmt.Errorf("could not verify player %d: %s", p.ID, err)
 	}
-	return &resp.People[0], nil
+	player := &resp.People[0]
+	p.firstName = player.FirstName
+	p.lastName = player.LastName
+	return nil
 }
 
-func getPlayerData(playerID int, stat string) (*chartData, error) {
-	player, err := verifyPlayer(playerID)
+func (p *Player) getData(stat string) (*chartData, error) {
+	err := p.populateName()
 	if err != nil {
 		return nil, err
 	}
 
-	playerStats := fmt.Sprintf("people/%d/stats?stats=gameLog", playerID)
+	playerStats := fmt.Sprintf("people/%d/stats?stats=gameLog", p.ID)
 	resp := new(statsResponse)
 	err = getJSON(hostURL+playerStats, resp)
 	if err != nil {
@@ -146,7 +162,7 @@ func getPlayerData(playerID int, stat string) (*chartData, error) {
 	}
 	return &chartData{
 		series: chart.TimeSeries{
-			Name:    fmt.Sprintf("%s, %s", player.LastName, player.FirstName),
+			Name:    fmt.Sprintf("%s, %s", p.lastName, p.firstName),
 			XValues: xValues,
 			YValues: yValues,
 		},
@@ -155,16 +171,16 @@ func getPlayerData(playerID int, stat string) (*chartData, error) {
 	}, nil
 }
 
-func getPlayers(input []string) []int {
-	a := make([]int, len(input))
+func getPlayers(input []string) []Player {
+	players := make([]Player, len(input))
 	for i, v := range input {
 		val, err := strconv.Atoi(v)
 		if err != nil {
 			log.Fatalf("error converting input %s to int", v)
 		}
-		a[i] = val
+		players[i] = Player{ID: val}
 	}
-	return a
+	return players
 }
 
 func getLines(min, max, count float64) []float64 {
@@ -196,24 +212,44 @@ func getGridLines(min, max, count float64) []chart.GridLine {
 	return gridLines
 }
 
+func getFileExtension(desiredExtension *string) outputFormat {
+	switch strings.ToLower(*desiredExtension) {
+	case "svg":
+		return outputFormat{name: "svg", renderer: chart.SVG}
+	case "png":
+		return outputFormat{name: "png", renderer: chart.PNG}
+	default:
+		log.Printf("Desired extension '%s' not matched. Using svg.\n", *desiredExtension)
+		return outputFormat{name: "svg", renderer: chart.SVG}
+	}
+}
+
 func main() {
-	var stat = flag.String("stat", "points", "the stat to measure (i.e. points, goals)")
-	var outputFile = flag.String("o", "leaders.png", "the file name i.e. 'top10_points.png'")
+	stat := flag.String("stat", "points", "the stat to measure (i.e. points, goals)")
+	outputFile := flag.String("o", "leaders", "the file name i.e. 'top10_points'")
+	formatFlag := flag.String("format", "svg", "the file format SVG or PNG")
 	flag.Parse()
 
 	players := getPlayers(flag.Args())
-	var series []chart.Series
 	yAxisMax, yAxisMin := float64(0), math.MaxFloat64
+	var series []chart.Series
+	var wg sync.WaitGroup
 	for _, player := range players {
-		chartData, err := getPlayerData(player, *stat)
-		if err != nil {
-			log.Printf("%s", err)
-			continue
-		}
-		series = append(series, chartData.series)
-		yAxisMin = math.Min(yAxisMin, chartData.min)
-		yAxisMax = math.Max(yAxisMax, chartData.max)
+		wg.Add(1)
+		go func(player Player) {
+			defer wg.Done()
+			chartData, err := player.getData(*stat)
+			if err != nil {
+				log.Printf("%s", err)
+				return
+			}
+			series = append(series, chartData.series)
+			// possible race condition in multiple go routines setting minimum?
+			yAxisMin = math.Min(yAxisMin, chartData.min)
+			yAxisMax = math.Max(yAxisMax, chartData.max)
+		}(player)
 	}
+	wg.Wait()
 
 	graph := chart.Chart{
 		XAxis: chart.XAxis{
@@ -240,11 +276,13 @@ func main() {
 		chart.Legend(&graph),
 	}
 
-	f, err := os.Create(fmt.Sprintf("%s", *outputFile))
+	outputFormat := getFileExtension(formatFlag)
+
+	f, err := os.Create(fmt.Sprintf("%s.%s", *outputFile, outputFormat.name))
 	if err != nil {
 		log.Fatalf("error creating file %s", err)
 	}
 	defer f.Close()
 
-	graph.Render(chart.PNG, f)
+	graph.Render(outputFormat.renderer, f)
 }

@@ -1,4 +1,8 @@
 **/*.png
+**/*.svg
+
 .vscode/
 sandbox
 debug
+
+hockey-stats
