@@ -50,6 +50,19 @@ type stat struct {
 	OverTimeGoals     int `json:"overTimeGoals"`
 }
 
+type rosterResponse struct {
+	RosterEntry []rosterEntry `json:"roster"`
+}
+
+type rosterEntry struct {
+	Person       person `json:"person"`
+	JerseyNumber string `json:"jerseyNumber"`
+}
+
+type person struct {
+	ID int `json:"id"`
+}
+
 type peopleResponse struct {
 	People []people `json:"people"`
 }
@@ -224,13 +237,36 @@ func getFileExtension(desiredExtension *string) outputFormat {
 	}
 }
 
+func getTeamPlayers(team int) (people []string, err error) {
+	teamRoster := fmt.Sprintf("teams/%d/roster", team)
+	resp := new(rosterResponse)
+	err = getJSON(hostURL+teamRoster, resp)
+	if err != nil {
+		return
+	}
+
+	for _, player := range resp.RosterEntry {
+		people = append(people, strconv.Itoa(player.Person.ID))
+	}
+	return
+}
+
 func main() {
 	stat := flag.String("stat", "points", "the stat to measure (i.e. points, goals)")
-	outputFile := flag.String("o", "leaders", "the file name i.e. 'top10_points'")
+	outputFile := flag.String("output", "leaders", "the file name i.e. 'top10_points'")
 	formatFlag := flag.String("format", "svg", "the file format SVG or PNG")
+	teamFlag := flag.Int("team", -1, "Add team to output")
 	flag.Parse()
 
-	players := getPlayers(flag.Args())
+	var err error
+	var teamPlayers []string
+	if *teamFlag != -1 {
+		// TODO error handling
+		teamPlayers, err = getTeamPlayers(*teamFlag)
+	}
+
+	players := getPlayers(append(flag.Args(), teamPlayers...))
+
 	yAxisMax, yAxisMin := float64(0), math.MaxFloat64
 	var series []chart.Series
 	var wg sync.WaitGroup
