@@ -79,7 +79,7 @@ func TestGetFileExtension(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		result := getFileExtension(&testCase.input)
+		result := getFileExtension(testCase.input)
 		if testCase.expected.name != result.name { //would be good to check renderer too
 			t.Errorf("expected %v, got %v", testCase.expected, result)
 		}

@@ -1,6 +1,0 @@
-[[constraint]]
-  name = "github.com/wcharczuk/go-chart"
-
-[prune]
-  go-tests = true
-  unused-packages = true
