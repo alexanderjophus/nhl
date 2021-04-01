@@ -1,4 +1,4 @@
-module github.com/trelore/hockey-stats
+module github.com/trelore/nhl
 
 go 1.16
 

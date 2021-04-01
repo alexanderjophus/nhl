@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	hockeystats "github.com/trelore/hockey-stats"
+	"github.com/trelore/nhl"
 	"github.com/wcharczuk/go-chart"
 )
 
@@ -33,10 +33,12 @@ func main() {
 }
 
 func run(stat, outputFile, formatFlag string, teamFlag int) error {
+	n := nhl.NewClient()
+
 	var err error
 	var playerIDs []string
 	if teamFlag != -1 {
-		playerIDs, err = hockeystats.GetTeamPlayers(teamFlag)
+		playerIDs, err = n.GetTeamPlayerIDs(teamFlag)
 		if err != nil {
 			return err
 		}
@@ -51,7 +53,7 @@ func run(stat, outputFile, formatFlag string, teamFlag int) error {
 		wg.Add(1)
 		go func(playerID string) {
 			defer wg.Done()
-			chartData, err := getData(playerID, stat)
+			chartData, err := getData(n, playerID, stat)
 			if err != nil {
 				log.Printf("%s", err)
 				return
@@ -150,13 +152,13 @@ func getGridLines(min, max, count float64) []chart.GridLine {
 	return gridLines
 }
 
-func getData(playerID string, stat string) (*chartData, error) {
-	player, err := hockeystats.GetPlayer(playerID)
+func getData(n nhl.Client, playerID string, stat string) (*chartData, error) {
+	player, err := n.GetPlayer(playerID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := player.GameLogStats()
+	resp, err := n.GameLogStats(player)
 	if err != nil {
 		return nil, err
 	}

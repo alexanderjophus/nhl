@@ -8,3 +8,5 @@ debug
 /vendor
 
 hockey-stats
+
+examples/helloworld
