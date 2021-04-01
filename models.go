@@ -7,12 +7,56 @@ type franchisesResponse struct {
 
 type Franchise struct {
 	Franchiseid      int    `json:"franchiseId"`
-	Firstseasonid    int    `json:"firstSeasonId"`
-	Mostrecentteamid int    `json:"mostRecentTeamId"`
+	Firstseasonid    int    `json:"firstSeasonId,omitempty"`
+	Mostrecentteamid int    `json:"mostRecentTeamId,omitempty"`
 	Teamname         string `json:"teamName"`
-	Locationname     string `json:"locationName"`
+	Locationname     string `json:"locationName,omitempty"`
 	Link             string `json:"link"`
 	Lastseasonid     int    `json:"lastSeasonId,omitempty"`
+}
+
+type teamsResponse struct {
+	Copyright string `json:"copyright"`
+	Teams     []Team `json:"teams"`
+}
+type Timezone struct {
+	ID     string `json:"id"`
+	Offset int    `json:"offset"`
+	Tz     string `json:"tz"`
+}
+type Division struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Link string `json:"link"`
+}
+type Conference struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Link string `json:"link"`
+}
+type Venue struct {
+	ID       int      `json:"id"`
+	Name     string   `json:"name"`
+	Link     string   `json:"link"`
+	City     string   `json:"city"`
+	Timezone Timezone `json:"timeZone"`
+}
+type Team struct {
+	ID              int        `json:"id"`
+	Name            string     `json:"name"`
+	Link            string     `json:"link"`
+	Venue           Venue      `json:"venue,omitempty"`
+	Abbreviation    string     `json:"abbreviation"`
+	Teamname        string     `json:"teamName"`
+	Locationname    string     `json:"locationName"`
+	Firstyearofplay string     `json:"firstYearOfPlay"`
+	Division        Division   `json:"division"`
+	Conference      Conference `json:"conference"`
+	Franchise       Franchise  `json:"franchise"`
+	Shortname       string     `json:"shortName"`
+	Officialsiteurl string     `json:"officialSiteUrl"`
+	Franchiseid     int        `json:"franchiseId"`
+	Active          bool       `json:"active"`
 }
 
 type statsResponse struct {

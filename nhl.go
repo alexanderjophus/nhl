@@ -44,7 +44,7 @@ func (c *Client) GetFranchise(franchiseID int) (Franchise, error) {
 	resp := franchisesResponse{}
 	err := c.getJSON(fmt.Sprintf("%s/franchises/%d", hostURL, franchiseID), &resp)
 	if err != nil {
-		return Franchise{}, fmt.Errorf("getting franchises: %w", err)
+		return Franchise{}, fmt.Errorf("getting franchise %d: %w", franchiseID, err)
 	}
 
 	if len(resp.Franchises) != 1 {
@@ -52,6 +52,29 @@ func (c *Client) GetFranchise(franchiseID int) (Franchise, error) {
 	}
 
 	return resp.Franchises[0], nil
+}
+
+func (c *Client) GetTeams() ([]Team, error) {
+	resp := teamsResponse{}
+	err := c.getJSON(fmt.Sprintf("%s/teams", hostURL), &resp)
+	if err != nil {
+		return []Team{}, fmt.Errorf("getting teams: %w", err)
+	}
+	return resp.Teams, nil
+}
+
+func (c *Client) GetTeam(teamID int) (Team, error) {
+	resp := teamsResponse{}
+	err := c.getJSON(fmt.Sprintf("%s/teams/%d", hostURL, teamID), &resp)
+	if err != nil {
+		return Team{}, fmt.Errorf("getting team %d: %w", teamID, err)
+	}
+
+	if len(resp.Teams) != 1 {
+		return Team{}, fmt.Errorf("cannot find franchise")
+	}
+
+	return resp.Teams[0], nil
 }
 
 func (c *Client) GetPlayer(playerID string) (*Person, error) {
